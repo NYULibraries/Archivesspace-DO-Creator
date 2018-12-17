@@ -1,0 +1,11 @@
+client {
+  timeout=10
+}
+
+env {
+  dev {
+    uri ="uri"
+    username = "username
+    password = "password"
+  }
+}
