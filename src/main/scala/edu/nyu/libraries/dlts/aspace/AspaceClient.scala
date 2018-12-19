@@ -14,7 +14,7 @@ import org.json4s.{DefaultFormats, JValue}
 import scala.io.Source
 
 case class WorkOrderRow (resourceId: String, refId: String,	uri: String, indicator1: String, 	indicator2: String, indicator3: String,	title: String, 	componentId: String)
-
+case class AspaceResponse(statusCode: Int, json: JValue)
 object AspaceClient {
 
   trait AspaceSupport {
@@ -70,7 +70,7 @@ object AspaceClient {
       }
     }
 
-    def getAO(env: String, aspace_url: String, token: String): Option[JValue] = {
+    def getAO(env: String, token: String, aspace_url: String): Option[JValue] = {
       try {
         val httpGet = new HttpGet(conf.getString(s"env.$env.uri") + aspace_url)
         httpGet.addHeader(header, token)
@@ -86,7 +86,28 @@ object AspaceClient {
       }
     }
 
-    def get(env: String, uri: String, token: String): Option[JValue] = {
+    def postAO(env: String, token: String, aoURI: String, data: String): Option[AspaceResponse] = {
+      try {
+        val httpPost = new HttpPost((conf.getString(s"env.$env.uri")) + aoURI)
+        val postEntity = new StringEntity(data, "UTF-8")
+        httpPost.addHeader(header, token)
+        httpPost.setEntity(postEntity)
+        httpPost.setHeader("Content-type", "application/json; charset=UTF-8")
+        val response = client.execute(httpPost)
+        val code = response.getStatusLine()
+        val responseEntity = response.getEntity
+        val  content = parse(scala.io.Source.fromInputStream(responseEntity.getContent).mkString)
+        val statusLine = response.getStatusLine.getStatusCode.toInt
+        EntityUtils.consume(responseEntity)
+        EntityUtils.consume(postEntity)
+        response.close()
+        Some(new AspaceResponse(statusLine, content))
+      } catch {
+        case e: Exception => None
+      }
+    }
+
+    def get(env: String, token: String, uri: String): Option[JValue] = {
       try {
         val httpGet = new HttpGet(conf.getString(s"env.$env.uri") + uri)
         httpGet.addHeader(header, token)
@@ -102,7 +123,28 @@ object AspaceClient {
       }
     }
 
+    def postDO(env: String, token: String, repId: Int, data: String): Option[AspaceResponse] = {
+      try {
+
+        val httpPost = new HttpPost(conf.getString(s"env.$env.uri") + s"/repositories/$repId/digital_objects")
+        httpPost.addHeader(header, token)
+        val postEntity = new StringEntity(data, "UTF-8")
+        httpPost.setEntity(postEntity)
+        httpPost.setHeader("Content-type", "application/json; charset=UTF-8")
+        val response = client.execute(httpPost)
+        val responseEntity = response.getEntity
+        val  content = parse(scala.io.Source.fromInputStream(responseEntity.getContent).mkString)
+        val statusLine = response.getStatusLine.getStatusCode.toInt
+        EntityUtils.consume(responseEntity)
+        EntityUtils.consume(postEntity)
+        response.close()
+        Some(new AspaceResponse(statusLine, content))
+      } catch {
+        case e: Exception => {
+          None
+        }
+      }
+    }
+
   }
-
-
 }

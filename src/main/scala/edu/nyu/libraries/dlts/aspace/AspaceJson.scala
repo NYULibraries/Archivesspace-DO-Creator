@@ -8,21 +8,39 @@ object AspaceJson {
 
   trait JsonSupport {
 
-    def createDigitalObject(uri: String): JValue = {
+    def printPretty(json: JValue) = {
+      println(pretty(render(json)))
+    }
+
+    def printCompact(json: JValue) = {
+      println(compact(render(json)))
+    }
+
+    def getCompact(json: JValue) = {
+      compact(render(json))
+    }
+
+    def getDORef(uri: String): JValue = { ("instance_type" -> "digital_object") ~
+        ("jsonmodel_type" ->"instance") ~
+        ("is_representative" -> false) ~
+        ("digital_object" ->
+          ("ref" -> uri))
+    }
+
+
+    def jsonDo(uri: String, title: String, doId: String): JValue = {
 
       val fileVersions = List[JValue](
         ("jsonmodel_type" -> "file_version") ~
         ("is_representative" -> false) ~
         ("file_uri" -> uri) ~
-        ("use_statement" -> "Video-Service") ~
+        ("use_statement" -> "video-service") ~
         ("xlink_acctuate_attribute" -> "onLoad") ~
         ("xlink_show_attribute" -> "new") ~
-        ("file_format_name" -> "mp4")
-
+        ("publish" -> true)
       )
-      val digital_object =
-        (
-          ("jsonmodel_type" -> "digital_object") ~
+
+      val digital_object = ("jsonmodel_type" -> "digital_object") ~
           ("external_ids" -> List.empty[String]) ~
           ("linked_events" -> List.empty[String]) ~
           ("extents" -> List.empty[String]) ~
@@ -30,54 +48,14 @@ object AspaceJson {
           ("external_documents" -> List.empty[String]) ~
           ("rights_statements" -> List.empty[String]) ~
           ("linked_agents" -> List.empty[String]) ~
-          ("file_versions" -> fileVersions)
-        )
-
+          ("file_versions" -> fileVersions) ~
+          ("restrcitions" -> false) ~
+          ("notes" -> List.empty[String]) ~
+          ("linked_instances" -> List.empty[String]) ~
+          ("title" -> title) ~
+          ("digital_object_id" -> doId)
+      
       digital_object
     }
   }
-
 }
-
-
-
-/*
-{
-	"jsonmodel_type": "digital_object",
-	"external_ids": [],
-	"subjects": [],
-	"linked_events": [],
-	"extents": [{
-		"jsonmodel_type": "extent",
-		"portion": "whole",
-		"number": "16",
-		"extent_type": "gigabytes",
-		"dimensions": "FIC61U",
-		"physical_details": "463995282485R"
-	}],
-	"dates": [],
-	"external_documents": [],
-	"rights_statements": [],
-	"linked_agents": [],
-	"file_versions": [{
-		"jsonmodel_type": "file_version",
-		"is_representative": false,
-		"file_uri": "44X893459266",
-		"use_statement": "application-pdf",
-		"xlink_actuate_attribute": "none",
-		"xlink_show_attribute": "new",
-		"file_format_name": "tiff",
-		"file_format_version": "LAQ758157",
-		"file_size_bytes": 47,
-		"checksum": "GA465466606",
-		"checksum_method": "sha-384",
-		"publish": true
-	}],
-	"restrictions": false,
-	"notes": [],
-	"linked_instances": [],
-	"title": "Digital Object Title: 372",
-	"language": "dzo",
-	"digital_object_id": "WNJDI"
-}
-*/
