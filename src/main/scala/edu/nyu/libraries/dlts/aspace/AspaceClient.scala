@@ -4,7 +4,7 @@ import java.net.{URI, URL}
 
 import com.typesafe.config.ConfigFactory
 import org.apache.http.client.config.RequestConfig
-import org.apache.http.client.methods.{HttpGet, HttpPost}
+import org.apache.http.client.methods.{HttpGet, HttpPost, HttpDelete}
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.util.EntityUtils
@@ -137,6 +137,25 @@ object AspaceClient {
         val statusLine = response.getStatusLine.getStatusCode.toInt
         EntityUtils.consume(responseEntity)
         EntityUtils.consume(postEntity)
+        response.close()
+        Some(new AspaceResponse(statusLine, content))
+      } catch {
+        case e: Exception => {
+          None
+        }
+      }
+    }
+
+    def deleteDO(env: String, token: String, doUri: String): Option[AspaceResponse] = {
+      try {
+
+        val httpDelete = new HttpDelete(conf.getString(s"env.$env.uri") + doUri)
+        httpDelete.addHeader(header, token)
+        val response = client.execute(httpDelete)
+        val responseEntity = response.getEntity
+        val  content = parse(scala.io.Source.fromInputStream(responseEntity.getContent).mkString)
+        val statusLine = response.getStatusLine.getStatusCode.toInt
+        EntityUtils.consume(responseEntity)
         response.close()
         Some(new AspaceResponse(statusLine, content))
       } catch {
