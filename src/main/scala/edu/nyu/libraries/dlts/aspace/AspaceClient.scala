@@ -15,6 +15,7 @@ import scala.io.Source
 
 case class WorkOrderRow (resourceId: String, refId: String,	uri: String, indicator1: String, 	indicator2: String, indicator3: String,	title: String, 	componentId: String)
 case class AspaceResponse(statusCode: Int, json: JValue)
+
 object AspaceClient {
 
   trait AspaceSupport {
@@ -33,9 +34,9 @@ object AspaceClient {
       HttpClientBuilder.create().setDefaultRequestConfig(config).build()
     }
 
-    def getServer(env: String): Option[JValue] = {
+    def getServer(uri: URI): Option[JValue] = {
       try {
-        val httpGet = new HttpGet(conf.getString(s"env.$env.uri"))
+        val httpGet = new HttpGet(uri)
         val response = client.execute(httpGet)
         val entity = response.getEntity
         val content = entity.getContent
@@ -70,9 +71,9 @@ object AspaceClient {
       }
     }
 
-    def getAO(env: String, token: String, aspace_url: String): Option[JValue] = {
+    def getAO(uri: URI, token: String, aspace_url: String): Option[JValue] = {
       try {
-        val httpGet = new HttpGet(conf.getString(s"env.$env.uri") + aspace_url)
+        val httpGet = new HttpGet(uri + aspace_url)
         httpGet.addHeader(header, token)
         val response = client.execute(httpGet)
         val entity = response.getEntity
@@ -86,9 +87,9 @@ object AspaceClient {
       }
     }
 
-    def postAO(env: String, token: String, aoURI: String, data: String): Option[AspaceResponse] = {
+    def postAO(uri: URI, token: String, aoURI: String, data: String): Option[AspaceResponse] = {
       try {
-        val httpPost = new HttpPost((conf.getString(s"env.$env.uri")) + aoURI)
+        val httpPost = new HttpPost(uri + aoURI)
         val postEntity = new StringEntity(data, "UTF-8")
         httpPost.addHeader(header, token)
         httpPost.setEntity(postEntity)
@@ -107,9 +108,9 @@ object AspaceClient {
       }
     }
 
-    def get(env: String, token: String, uri: String): Option[JValue] = {
+    def get(uri: URI, token: String, aoUri: String): Option[JValue] = {
       try {
-        val httpGet = new HttpGet(conf.getString(s"env.$env.uri") + uri)
+        val httpGet = new HttpGet(uri + aoUri)
         httpGet.addHeader(header, token)
         val response = client.execute(httpGet)
         val entity = response.getEntity
@@ -123,10 +124,10 @@ object AspaceClient {
       }
     }
 
-    def postDO(env: String, token: String, repId: Int, data: String): Option[AspaceResponse] = {
+    def postDO(uri: URI, token: String, repId: Int, data: String): Option[AspaceResponse] = {
       try {
 
-        val httpPost = new HttpPost(conf.getString(s"env.$env.uri") + s"/repositories/$repId/digital_objects")
+        val httpPost = new HttpPost(uri + s"/repositories/$repId/digital_objects")
         httpPost.addHeader(header, token)
         val postEntity = new StringEntity(data, "UTF-8")
         httpPost.setEntity(postEntity)
@@ -146,10 +147,10 @@ object AspaceClient {
       }
     }
 
-    def deleteDO(env: String, token: String, doUri: String): Option[AspaceResponse] = {
+    def deleteDO(uri: URI, env: String, token: String, doUri: String): Option[AspaceResponse] = {
       try {
 
-        val httpDelete = new HttpDelete(conf.getString(s"env.$env.uri") + doUri)
+        val httpDelete = new HttpDelete(uri + doUri)
         httpDelete.addHeader(header, token)
         val response = client.execute(httpDelete)
         val responseEntity = response.getEntity

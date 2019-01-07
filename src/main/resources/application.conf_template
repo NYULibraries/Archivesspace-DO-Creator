@@ -3,9 +3,13 @@ client {
 }
 
 env {
-  dev {
-    uri ="uri"
-    username = "username
-    password = "password"
-  }
+  dev = "my dev uri"
+  stage = "my stage uri"
+  prod = "my prod uri"
+}
+
+repositories {
+  "rep name 1" = 1
+  "rep name 2" = 2
+  "rep name 3" = 3
 }

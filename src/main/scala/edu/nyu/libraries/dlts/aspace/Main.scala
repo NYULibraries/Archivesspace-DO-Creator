@@ -2,89 +2,95 @@ package edu.nyu.libraries.dlts.aspace
 
 import java.net.URI
 import java.util.UUID
-
-import edu.nyu.libraries.dlts.aspace.AspaceClient._
-import edu.nyu.libraries.dlts.aspace.AspaceJson._
-import org.json4s.JValue
 import org.json4s.JsonAST.{JArray, JString, JValue}
-import org.json4s.native.JsonMethods._
-
 import scala.io.Source
 
-object Main extends App with AspaceSupport with JsonSupport {
+import AspaceClient._
+import AspaceJson._
+import CLI._
+
+object Main extends App with AspaceSupport with JsonSupport with CLISupport {
 
   //set the environment
-  val env = "dev"
+  val sessionInfo = getSessionOptions(args, conf)
 
   //get a token -- or exit
-  val token = getToken(conf.getString("env.dev.username"), conf.getString("env.dev.password"), new URI(conf.getString("env.dev.uri"))).get
+  val token = getToken(sessionInfo.username, sessionInfo.password, sessionInfo.uri).get
 
-  val eadUri = "https://aeon.library.nyu.edu/Logon?Action=10&Form=31&Value=http://dlib.nyu.edu/findingaids/ead/fales/darinka.xml&view=xml"
-
-  val repositoryId = 3
-
+  val eadUri = "https://aeon.library.nyu.edu/Logon?Action=10&Form=31&Value=http://dlib.nyu.edu/findingaids/ead/fales/darinka.xml&view=xml" //this will need to be configurable somehow
 
 
   //iterate through work order
-  Source.fromFile("darinka.txt").getLines().drop(1).take(1).foreach { i =>
+  Source.fromFile(sessionInfo.source.get).getLines().foreach { i => //to be passed via cli
     val cols = i.split("\t")
     val woRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
-    
-    //request the AO from Archivesspace
-    val ao = getAO(env, token, woRow.uri).get //what happens if this fails
-    
-    //create a new digital object
-    val digitalObject = jsonDo(eadUri, woRow.title, "cuidTEST-" + UUID.randomUUID().toString)
-
-    //post the digital object to aspace 
-    postDO(env, token, repositoryId, getCompact(digitalObject)) match {
-      case Some(asResponse) => {
-        asResponse.statusCode match {
-          case 200 => {
-            
-            //add digital object to list of instances
-            val doUri = (asResponse.json \ "uri").extract[String]
-            val instances = (ao \ "instances").extract[List[JValue]]
-            val doRef = getDORef(doUri)
-            val updatedInstances = JArray(instances ++ List(doRef))
-            
-            //remove the conditions governing access note
-            var updatedNotes = List.empty[JValue]
-            val notes = ao \ "notes"
-
-            notes.extract[List[JValue]].foreach { note =>
-              if(!note.children.contains(JString("Conditions Governing Access"))) {
-              updatedNotes = updatedNotes ++ List(note)
-            }
-
-            val updatedAo = ao.mapField {
-              case ("instances", JArray(x)) => ("instances", updatedInstances)
-              case otherwise => otherwise
-            }
-
-            postAO(env, token, woRow.uri, getCompact(updatedAo)) match {
-              case Some(aoResponse) => {
-                aoResponse.statusCode match {
-                  case 200 => printPretty(aoResponse.json)
-                  case _ => {
-              
-                  }
-                }
-              }
-              case None =>
-            }
-
-          }
-
-          case _ => {
-            println(asResponse.statusCode)
-            printPretty(asResponse.json)
-          }
-        }
-      }
-      case None =>
-    }
-*/
+    println(woRow)
   }
+
+  //request the AO from Archivesspace
+  private def processRow(woRow: WorkOrderRow): Unit = {
+    val archivalObject = getAO(sessionInfo.uri, token, woRow.uri)
+
+    archivalObject match {
+
+      case Some(ao) =>
+        //create a new digital object
+        val digitalObject = getCompact(jsonDo(eadUri, woRow.title, "cuidTEST-" + UUID.randomUUID().toString))
+        val postedDigital = postDO(sessionInfo.uri, token, sessionInfo.repositoryId, digitalObject)
+
+        postedDigital match {
+          case Some(dObj) => {
+            dObj.statusCode match {
+              case 200 => {
+                val instances = getInstanceList(dObj, (ao \ "instances").extract[List[JValue]])
+                val notes = removeAccessNote((ao \ "notes").extract[List[JValue]])
+                val updatedAo = getCompact(updateAo(ao, instances, notes))
+                val postedAo = postAO(sessionInfo.uri, token, woRow.uri, updatedAo)
+
+                postedAo match {
+                  case Some(aObj) => {
+                    aObj.statusCode match {
+                      case 200 => printPretty(aObj.json)
+                      case _ => //log the error
+                    }
+                  }
+                  case None => //log the error
+                }
+
+              }
+              case _ => //log the error
+            }
+          }
+          case None => //log the error
+        }
+      case None => //log the error
+    }
+  }
+
+  private def getInstanceList(response: AspaceResponse, instances: List[JValue]): JArray = {
+    val doUri = (response.json \ "uri").extract[String]
+    val doRef = getDORef(doUri)
+    JArray(instances ++ List(doRef))
+  }
+
+  private def removeAccessNote(notes: List[JValue]): JArray = {
+    var updatedNotes = List.empty[JValue]
+
+    notes.foreach { note =>
+      if (!note.children.contains(JString("Conditions Governing Access"))) {
+        updatedNotes = updatedNotes ++ List(note)
+      }
+    }
+    JArray(updatedNotes)
+  }
+
+  private def updateAo(ao: JValue, instances: JArray, notes: JArray): JValue = {
+    ao.mapField {
+      case ("instances", JArray(x)) => ("instances", instances)
+      case ("notes", JArray(arr)) => ("notes", notes)
+      case otherwise => otherwise
+    }
+  }
+
 }
 
