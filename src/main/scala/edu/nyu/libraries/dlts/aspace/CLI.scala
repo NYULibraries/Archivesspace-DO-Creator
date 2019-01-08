@@ -8,9 +8,9 @@ import java.time.Instant
 import org.rogach.scallop.exceptions.{Help, RequiredOptionNotFound, ScallopException}
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 
-import scala.io.StdIn
+import scala.io.{Source, StdIn}
 
-case class SessionInfo(env: String, username: String, password: String, repositoryId: Int, uri: URI, source: Option[String], drop: Option[Int], take: Option[Int])
+case class SessionInfo(env: String, username: String, password: String, repositoryId: Int, uri: URI, tsv: File, drop: Option[Int], take: Option[Int])
 
 object CLI {
 
@@ -35,7 +35,7 @@ object CLI {
       println("    -d, --drop, optional\tnumber of rows to skip from the beginning of csv file")
       println("    -t, --take, optional\tnumber of rows to process from csv file")
       println("    -h, --help\tprint this message")
-      System.exit(0)
+      System.exit(1)
     }
 
     private class CLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
@@ -55,6 +55,13 @@ object CLI {
         }
       }
 
+      //make sure the file exists
+      val tsv = new File(cli.source.toOption.get)
+      if(!tsv.exists()) {
+        println(s"Error: ${tsv.getAbsolutePath} does not exist, exiting")
+        help()
+      }
+
       val repository = getFromConsole("Enter repository - fales, tamwag, archvies").toLowerCase.trim
       val repoId =  conf.getInt(s"repositories.${repository}")
       val env = getFromConsole("Enter environment - dev, stage, prod: ").toLowerCase
@@ -62,7 +69,7 @@ object CLI {
       val pswd = getFromConsole("password")
       val uri = new URI(conf.getString(s"env.$env"))
 
-      SessionInfo(env, usr, pswd, repoId, uri, cli.source.toOption, cli.drop.toOption, cli.take.toOption)
+      SessionInfo(env, usr, pswd, repoId, uri, tsv, cli.drop.toOption, cli.take.toOption)
     }
 
 

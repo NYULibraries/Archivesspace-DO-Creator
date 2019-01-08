@@ -1,17 +1,20 @@
 package edu.nyu.libraries.dlts.aspace
 
+import java.io.File
 import java.net.URI
+import java.nio.file.{Files, Paths}
 import java.util.UUID
-import org.json4s.JsonAST.{JArray, JString, JValue}
-import scala.io.Source
 
+import org.json4s.JsonAST.{JArray, JString, JValue}
+
+import scala.io.{BufferedSource, Source}
 import AspaceClient._
 import AspaceJson._
 import CLI._
 
 object Main extends App with AspaceSupport with JsonSupport with CLISupport {
 
-  //set the environment
+  //get the sessions options
   val sessionInfo = getSessionOptions(args, conf)
 
   //get a token -- or exit
@@ -19,12 +22,15 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
 
   val eadUri = "https://aeon.library.nyu.edu/Logon?Action=10&Form=31&Value=http://dlib.nyu.edu/findingaids/ead/fales/darinka.xml&view=xml" //this will need to be configurable somehow
 
+  val lineCount = Files.lines(Paths.get(sessionInfo.tsv.getAbsolutePath)).count().toInt - 1
+  val drop = sessionInfo.drop.getOrElse(1)
+  val take = sessionInfo.take.getOrElse(lineCount)
 
-  //iterate through work order
-  Source.fromFile(sessionInfo.source.get).getLines().foreach { i => //to be passed via cli
-    val cols = i.split("\t")
-    val woRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
-    println(woRow)
+
+  Source.fromFile(sessionInfo.tsv).getLines().slice(drop, take + 1).foreach { row =>
+    val cols = row.split("\t").map(_.trim)
+    val workOrderRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
+    processRow(workOrderRow)
   }
 
   //request the AO from Archivesspace
@@ -77,8 +83,9 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
     var updatedNotes = List.empty[JValue]
 
     notes.foreach { note =>
-      if (!note.children.contains(JString("Conditions Governing Access"))) {
-        updatedNotes = updatedNotes ++ List(note)
+      note.children.contains(JString("Conditions Governing Access")) match {
+        case true => //do nothing
+        case false => updatedNotes = updatedNotes ++ List(note)
       }
     }
     JArray(updatedNotes)
