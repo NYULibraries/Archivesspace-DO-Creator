@@ -3,8 +3,9 @@ package edu.nyu.libraries.dlts.aspace
 import java.net.{URI, URL}
 
 import com.typesafe.config.ConfigFactory
+import edu.nyu.libraries.dlts.aspace.Logger.LoggingSupport
 import org.apache.http.client.config.RequestConfig
-import org.apache.http.client.methods.{HttpGet, HttpPost, HttpDelete}
+import org.apache.http.client.methods.{HttpDelete, HttpGet, HttpPost}
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.util.EntityUtils
@@ -18,13 +19,13 @@ case class AspaceResponse(statusCode: Int, json: JValue)
 
 object AspaceClient {
 
-  trait AspaceSupport {
+  trait AspaceSupport extends LoggingSupport {
 
     implicit val formats: DefaultFormats = DefaultFormats
 
     val conf = ConfigFactory.load()
     val header = "X-ArchivesSpace-Session"
-    val client = getClient(conf.getInt("client.timeout"))
+    val client = getClient(conf.getInt("timeout"))
 
     def getClient(timeout: Int): CloseableHttpClient = {
       val config = RequestConfig.custom()

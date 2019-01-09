@@ -2,9 +2,7 @@ package edu.nyu.libraries.dlts.aspace
 
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
-import java.net.{URI, URL}
-import java.time.Instant
-
+import java.net.URI
 import org.rogach.scallop.exceptions.{Help, RequiredOptionNotFound, ScallopException}
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 
@@ -15,8 +13,6 @@ case class SessionInfo(env: String, username: String, password: String, reposito
 object CLI {
 
   trait CLISupport {
-
-    val now: String = Instant.now().toString
 
     private def help(optionName: String) {
       println(s"Error: Missing required option $optionName")

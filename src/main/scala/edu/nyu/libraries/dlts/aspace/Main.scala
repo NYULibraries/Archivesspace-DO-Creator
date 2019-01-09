@@ -1,16 +1,14 @@
 package edu.nyu.libraries.dlts.aspace
 
-import java.io.File
-import java.net.URI
 import java.nio.file.{Files, Paths}
 import java.util.UUID
-
 import org.json4s.JsonAST.{JArray, JString, JValue}
+import scala.io.Source
 
-import scala.io.{BufferedSource, Source}
 import AspaceClient._
 import AspaceJson._
 import CLI._
+import Logger._
 
 object Main extends App with AspaceSupport with JsonSupport with CLISupport {
 
@@ -32,6 +30,9 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
     val workOrderRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
     processRow(workOrderRow)
   }
+
+  close()
+  //System.exit(0)
 
   //request the AO from Archivesspace
   private def processRow(woRow: WorkOrderRow): Unit = {
@@ -56,7 +57,9 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
                 postedAo match {
                   case Some(aObj) => {
                     aObj.statusCode match {
-                      case 200 => printPretty(aObj.json)
+                      case 200 => {
+                        writeToLog(addToJArray(aObj.json, "title", (ao \"title").extract[String]))
+                      }
                       case _ => //log the error
                     }
                   }
@@ -97,6 +100,10 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
       case ("notes", JArray(arr)) => ("notes", notes)
       case otherwise => otherwise
     }
+  }
+
+  private def close(): Unit = {
+    closeLogger()
   }
 
 }

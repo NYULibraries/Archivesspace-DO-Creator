@@ -20,13 +20,14 @@ object AspaceJson {
       compact(render(json))
     }
 
+    def addToJArray(json: JValue, key: String, value: String): JValue = { json.asInstanceOf[JObject] ~ (key -> value) }
+
     def getDORef(uri: String): JValue = { ("instance_type" -> "digital_object") ~
         ("jsonmodel_type" ->"instance") ~
         ("is_representative" -> false) ~
         ("digital_object" ->
           ("ref" -> uri))
     }
-
 
     def jsonDo(uri: String, title: String, doId: String): JValue = {
 
