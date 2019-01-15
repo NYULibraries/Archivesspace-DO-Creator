@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.time.Instant
 
 import org.json4s.DefaultFormats
-import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.{JNull, JValue}
 
 object Logger {
 
@@ -12,10 +12,10 @@ object Logger {
 
   trait LoggingSupport {
     private val now: String = Instant.now().toString
-    private val logFile = new File(s"DO-Creator-$now.csv")
+    private val logFile = new File(s"DO-Creator-$now.tsv")
     private val logWriter = new FileWriter(logFile)
 
-    logWriter.write("\"id\",\"status\",\"uri\",\"title\"\"warnings\"\n")
+    logWriter.write("id\tstatus\turi\ttitle\twarnings\n")
     logWriter.flush()
 
     def closeLogger(): Unit = {
@@ -28,8 +28,11 @@ object Logger {
       val id = (result \ "id").extract[String]
       val uri = (result \ "uri").extract[String]
       val title = (result \ "title").extract[String]
-      val warnings = (result \ "warnings").extract[List[JValue]].mkString
-      logWriter.write(s"$id,$status,$uri,$title,$warnings\n")
+      val warnings = (result \ "warnings")
+      warnings match {
+        case JNull => logWriter.write(s"$id\t$status\t$uri\t$title\t\n")
+        case _ => logWriter.write(s"$id\t$status\t$uri\t$title\t${warnings.extract[List[String]].mkString("; ")}\n")
+      }
     }
   }
 

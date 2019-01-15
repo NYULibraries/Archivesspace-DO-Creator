@@ -1,11 +1,15 @@
+app {
+  version = "1.0.b"
+}
+
 client {
   timeout=10
 }
 
 env {
-  dev = "my dev uri"
-  stage = "my stage uri"
-  prod = "my prod uri"
+  dev = "aspacedev uri"
+  stage = "aspace stage uri"
+  prod = "aspace prod uri"
 }
 
 repositories {

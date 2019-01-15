@@ -19,13 +19,13 @@ case class AspaceResponse(statusCode: Int, json: JValue)
 
 object AspaceClient {
 
-  trait AspaceSupport extends LoggingSupport {
+  trait AspaceSupport {
 
     implicit val formats: DefaultFormats = DefaultFormats
 
     val conf = ConfigFactory.load()
     val header = "X-ArchivesSpace-Session"
-    val client = getClient(conf.getInt("timeout"))
+    val client = getClient(conf.getInt("client.timeout"))
 
     def getClient(timeout: Int): CloseableHttpClient = {
       val config = RequestConfig.custom()
