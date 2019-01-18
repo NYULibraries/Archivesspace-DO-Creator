@@ -1,37 +1,44 @@
 package edu.nyu.libraries.dlts.aspace
 
-import java.io.File
-import java.net.URI
 import java.nio.file.{Files, Paths}
-import java.util.UUID
 
 import org.json4s.JsonAST.{JArray, JString, JValue}
 
-import scala.io.{BufferedSource, Source}
+import scala.io.Source
 import AspaceClient._
 import AspaceJson._
 import CLI._
+import Logger._
 
-object Main extends App with AspaceSupport with JsonSupport with CLISupport {
+object Main extends App with AspaceSupport with JsonSupport with CLISupport with LoggingSupport {
+  println(s"* NYU Digital Object Creator ${conf.getString("app.version")} \n")
 
   //get the sessions options
   val sessionInfo = getSessionOptions(args, conf)
 
-  //get a token -- or exit
+  //request a token
   val token = getToken(sessionInfo.username, sessionInfo.password, sessionInfo.uri).get
 
-  val eadUri = "https://aeon.library.nyu.edu/Logon?Action=10&Form=31&Value=http://dlib.nyu.edu/findingaids/ead/fales/darinka.xml&view=xml" //this will need to be configurable somehow
+  //generate request url for collection
+  val eadUri = s"https://aeon.library.nyu.edu/Logon?Action=10&Form=31&Value=http://dlib.nyu.edu/findingaids/ead/${sessionInfo.repositoryName}/${sessionInfo.findingAid}&view=xml" //this will need to be configurable somehow
 
   val lineCount = Files.lines(Paths.get(sessionInfo.tsv.getAbsolutePath)).count().toInt - 1
-  val drop = sessionInfo.drop.getOrElse(1)
-  val take = sessionInfo.take.getOrElse(lineCount)
+  val drop = sessionInfo.drop.getOrElse(0)
+  val take = sessionInfo.take.getOrElse(lineCount - 1)
 
-
-  Source.fromFile(sessionInfo.tsv).getLines().slice(drop, take + 1).foreach { row =>
+  println()
+  Source.fromFile(sessionInfo.tsv).getLines().drop(drop + 1).take(take).foreach { row =>
     val cols = row.split("\t").map(_.trim)
     val workOrderRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
+    println(s"* processing ${workOrderRow.refId} - ${workOrderRow.title}")
     processRow(workOrderRow)
   }
+
+  close()
+
+  println("\n* Exiting")
+
+  System.exit(0)
 
   //request the AO from Archivesspace
   private def processRow(woRow: WorkOrderRow): Unit = {
@@ -40,8 +47,10 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
     archivalObject match {
 
       case Some(ao) =>
+        val title = (ao \ "title").extract[String]
+
         //create a new digital object
-        val digitalObject = getCompact(jsonDo(eadUri, woRow.title, "cuidTEST-" + UUID.randomUUID().toString))
+        val digitalObject = getCompact(jsonDo(eadUri, title, s"erecs-request-${woRow.refId}"))
         val postedDigital = postDO(sessionInfo.uri, token, sessionInfo.repositoryId, digitalObject)
 
         postedDigital match {
@@ -49,27 +58,38 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
             dObj.statusCode match {
               case 200 => {
                 val instances = getInstanceList(dObj, (ao \ "instances").extract[List[JValue]])
-                val notes = removeAccessNote((ao \ "notes").extract[List[JValue]])
+                val notes = removeAccessNote((ao \ "notes").extract[List[JValue]], sessionInfo.accessDeletion)
                 val updatedAo = getCompact(updateAo(ao, instances, notes))
                 val postedAo = postAO(sessionInfo.uri, token, woRow.uri, updatedAo)
 
                 postedAo match {
                   case Some(aObj) => {
                     aObj.statusCode match {
-                      case 200 => printPretty(aObj.json)
-                      case _ => //log the error
+                      case 200 => {
+                        println(" ** SUCCESS")
+                        writeToLog(addToJArray(aObj.json, "title", title))
+                      }
+                      case _ => System.err.println(" ** AOpost did not return 200")
                     }
                   }
-                  case None => //log the error
+                  case None => System.err.println(" ** AOpost encountered an Error")
                 }
 
               }
-              case _ => //log the error
+              case _ => {
+                System.err.println(s" ** ERROR - DOpost returned ${dObj.statusCode}")
+                var errors = List.empty[String]
+                (dObj.json \ "error").children.foreach { i =>
+                  errors = errors ++ List("digital_object " + i(0).extract[String])
+                }
+
+                writeToLog(formatError("failed", woRow.refId, woRow.uri, title, errors))
+              }
             }
           }
-          case None => //log the error
+          case None => System.err.println(" ** DOpost encountered an error")
         }
-      case None => //log the error
+      case None => System.err.println(s"** no ao found for ${woRow.uri} in ${sessionInfo.repositoryName} repository")
     }
   }
 
@@ -79,16 +99,21 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
     JArray(instances ++ List(doRef))
   }
 
-  private def removeAccessNote(notes: List[JValue]): JArray = {
-    var updatedNotes = List.empty[JValue]
+  private def removeAccessNote(notes: List[JValue], accessDelete: Boolean): JArray = {
+    accessDelete match {
+      case true => {
+        var updatedNotes = List.empty[JValue]
 
-    notes.foreach { note =>
-      note.children.contains(JString("Conditions Governing Access")) match {
-        case true => //do nothing
-        case false => updatedNotes = updatedNotes ++ List(note)
+        notes.foreach { note =>
+          note.children.contains(JString("Conditions Governing Access")) match {
+            case true => //do nothing
+            case false => updatedNotes = updatedNotes ++ List(note)
+          }
+        }
+        JArray(updatedNotes)
       }
+      case false => JArray(notes)
     }
-    JArray(updatedNotes)
   }
 
   private def updateAo(ao: JValue, instances: JArray, notes: JArray): JValue = {
@@ -97,6 +122,10 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport {
       case ("notes", JArray(arr)) => ("notes", notes)
       case otherwise => otherwise
     }
+  }
+
+  private def close(): Unit = {
+    closeLogger()
   }
 
 }

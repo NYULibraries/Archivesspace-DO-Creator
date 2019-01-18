@@ -2,21 +2,17 @@ package edu.nyu.libraries.dlts.aspace
 
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
-import java.net.{URI, URL}
-import java.time.Instant
-
+import java.net.URI
 import org.rogach.scallop.exceptions.{Help, RequiredOptionNotFound, ScallopException}
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 
 import scala.io.{Source, StdIn}
 
-case class SessionInfo(env: String, username: String, password: String, repositoryId: Int, uri: URI, tsv: File, drop: Option[Int], take: Option[Int])
+case class SessionInfo(env: String, username: String, password: String, repositoryId: Int, repositoryName: String, uri: URI, tsv: File, drop: Option[Int], take: Option[Int], findingAid: String, accessDeletion: Boolean)
 
 object CLI {
 
   trait CLISupport {
-
-    val now: String = Instant.now().toString
 
     private def help(optionName: String) {
       println(s"Error: Missing required option $optionName")
@@ -62,16 +58,26 @@ object CLI {
         help()
       }
 
-      val repository = getFromConsole("Enter repository - fales, tamwag, archvies").toLowerCase.trim
+      val repository = getFromConsole("repository - fales, tamwag, archives").toLowerCase.trim
       val repoId =  conf.getInt(s"repositories.${repository}")
-      val env = getFromConsole("Enter environment - dev, stage, prod: ").toLowerCase
+      val env = getFromConsole("environment - dev, stage, prod: ").toLowerCase
+      val findingAid = getFromConsole("Enter filename of the finding aid to be linked: ")
+      val accessDelete = deleteAccessNotes(getFromConsole("'y' or 'n' to delete access restrictions").toLowerCase.trim)
       val usr = getFromConsole("username")
       val pswd = getFromConsole("password")
       val uri = new URI(conf.getString(s"env.$env"))
 
-      SessionInfo(env, usr, pswd, repoId, uri, tsv, cli.drop.toOption, cli.take.toOption)
+
+      SessionInfo(env, usr, pswd, repoId, repository, uri, tsv, cli.drop.toOption, cli.take.toOption, findingAid, accessDelete)
     }
 
+    private def deleteAccessNotes(str: String): Boolean = {
+      str match {
+        case "y" => true
+        case "n" => false
+        case _ => false
+      }
+    }
 
     private def getFromConsole(str: String): String = {
       print(s"Enter the $str, or q to quit: ")

@@ -15,7 +15,7 @@ class ClientSpec extends UnitSpec with AspaceSupport {
   }
 
   it should "make a connection to archviesspace v2.5.1" in {
-    val response = getServer("dev")
+    val response = getServer(new URI(conf.getString("env.dev")))
 
     response match {
       case Some(i) => (i \ "archivesSpaceVersion").extract[String] should be ("v2.5.1")
@@ -24,7 +24,7 @@ class ClientSpec extends UnitSpec with AspaceSupport {
   }
 
   it should "login and get a session token" in {
-    val token = getToken(conf.getString("env.dev.username"), conf.getString("env.dev.password"), new URI(conf.getString("env.dev.uri")))
+    val token = getToken(conf.getString("test.username"), conf.getString("test.password"), new URI(conf.getString("env.dev")))
     token match {
       case Some(i) => i should not be empty
       case None => fail()

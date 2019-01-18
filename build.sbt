@@ -4,7 +4,7 @@ assemblyJarName in assembly := "DO-Workorder-Creator.jar"
 
 mainClass in assembly := Some("edu.nyu.libraries.dlts.aspace.Main")
 
-version := "v0.1b"
+version := "v1.0b"
 
 scalaVersion := "2.12.8"
 
