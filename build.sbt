@@ -1,10 +1,10 @@
 name := "DO-Create-AV"
 
-assemblyJarName in assembly := "DO-Workorder-Creator.jar"
+assemblyJarName in assembly := "AS-DO-Creator.jar"
 
 mainClass in assembly := Some("edu.nyu.libraries.dlts.aspace.Main")
 
-version := "v1.0b"
+version := "v0.1b"
 
 scalaVersion := "2.12.8"
 

@@ -8,9 +8,9 @@ import scala.io.Source
 import AspaceClient._
 import AspaceJson._
 import CLI._
-import Logger._
+import logging.Logger
 
-object Main extends App with AspaceSupport with JsonSupport with CLISupport with LoggingSupport {
+object Main extends App with AspaceSupport with JsonSupport with CLISupport {
   println(s"* NYU Digital Object Creator ${conf.getString("app.version")} \n")
 
   //get the sessions options
@@ -26,7 +26,7 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport with
   val drop = sessionInfo.drop.getOrElse(0)
   val take = sessionInfo.take.getOrElse(lineCount - 1)
 
-  println()
+  val logger = new Logger()
   Source.fromFile(sessionInfo.tsv).getLines().drop(drop + 1).take(take).foreach { row =>
     val cols = row.split("\t").map(_.trim)
     val workOrderRow = new WorkOrderRow(cols(0), cols(1), cols(2), cols(3), cols(4), cols(5), cols(6), cols(7))
@@ -67,9 +67,12 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport with
                     aObj.statusCode match {
                       case 200 => {
                         println(" ** SUCCESS")
-                        writeToLog(addToJArray(aObj.json, "title", title))
+                        logger.writeToLog(addToJArray(aObj.json, "title", title))
                       }
-                      case _ => System.err.println(" ** AOpost did not return 200")
+                      case _ => {
+                        System.err.println(" ** AOpost did not return 200")
+                        printPretty(aObj.json)
+                      }
                     }
                   }
                   case None => System.err.println(" ** AOpost encountered an Error")
@@ -83,7 +86,7 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport with
                   errors = errors ++ List("digital_object " + i(0).extract[String])
                 }
 
-                writeToLog(formatError("failed", woRow.refId, woRow.uri, title, errors))
+                logger.writeToLog(formatError("failed", woRow.refId, woRow.uri, title, errors))
               }
             }
           }
@@ -125,7 +128,7 @@ object Main extends App with AspaceSupport with JsonSupport with CLISupport with
   }
 
   private def close(): Unit = {
-    closeLogger()
+    logger.closeLogger()
   }
 
 }
